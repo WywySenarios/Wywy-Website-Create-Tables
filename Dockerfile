@@ -1,13 +1,13 @@
 FROM python:3.14.0-slim-bookworm
 WORKDIR /apps/create_tables
 
-COPY ./apps/create_tables/requirements.txt .
+COPY ./requirements.txt .
 RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install -r requirements.txt
 
-COPY ./apps/create_tables .
-COPY ./config.yml .
+COPY ./ .
+COPY ./../../config.yml .
 
 CMD ["python3", "create_tables.py"]
