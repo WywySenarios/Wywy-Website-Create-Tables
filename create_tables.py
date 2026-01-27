@@ -88,7 +88,7 @@ def to_lower_snake_case(target: str) -> str:
     return output[:-1] # remove trailing underscore with "[:-1]"
 
 def add_info_table() -> None:
-    conn = psycopg2.connect(**psycopg2config, dbname="info")
+    conn = psycopg2.connect(**psycopg2config)
     conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
     
     # create info db if necessary
