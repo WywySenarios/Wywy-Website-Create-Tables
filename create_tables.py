@@ -13,8 +13,6 @@ import psycopg2
 from psycopg2 import sql
 import yaml
 
-BASE_URL = "wywywebsite-cache_database"
-
 # Constants
 RESERVED_DATABASE_NAMES = ["info"]
 RESERVED_TABLE_NAMES = []
@@ -50,10 +48,10 @@ CONSTRAINT_NAMES = {
 }
 
 psycopg2config: dict = {
-    "host": BASE_URL,
-    "port": env["POSTGRES_PORT"],
-    "user": env["DB_USERNAME"],
-    "password": env["DB_PASSWORD"],
+    "host": env["DATABASE_HOST"],
+    "port": env["DATABASE_PORT"],
+    "user": env["DATABASE_USERNAME"],
+    "password": env["DATABASE_PASSWORD"],
     "sslmode": "prefer"
 }
 
@@ -90,7 +88,7 @@ def to_lower_snake_case(target: str) -> str:
     return output[:-1] # remove trailing underscore with "[:-1]"
 
 def add_info_table() -> None:
-    conn = psycopg2.connect(**psycopg2config)
+    conn = psycopg2.connect(**psycopg2config, db_name="info")
     conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
     
     # create info db if necessary
@@ -108,7 +106,7 @@ def add_info_table() -> None:
         conn.close()
     
     # create the info table
-    with psycopg2.connect(host=BASE_URL, port=env["POSTGRES_PORT"], user=env["DB_USERNAME"], password=env["DB_PASSWORD"], dbname="info") as conn:
+    with psycopg2.connect(**psycopg2config, dbname="info") as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = 'sync_status');")
             tableExists = cur.fetchone()[0]
@@ -405,12 +403,10 @@ if __name__ == "__main__":
             print(f"Skipping creation of database {db_name} due to schema {"violation" if len(schema_violations) == 1 else "violations"}")
             for schema_violation in schema_violations:
                 print(f" * {schema_violation}")
-
-        psycopg2config.pop("dbname", None)
         
         # check if the table already exists
         # @TODO reduce the number of with statements
-        conn = psycopg2.connect(**psycopg2config)
+        conn = psycopg2.connect(**psycopg2config, dbname=None)
         conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
         try:
@@ -423,8 +419,6 @@ if __name__ == "__main__":
                     print(f"Created database {db_name}")
         finally:
             conn.close()
-
-        psycopg2config["dbname"] = db_name
 
         # loop through every table that needs to be created @TODO verify config validity to avoid errors
         for tableInfo in dbInfo.get("tables", []):
@@ -479,7 +473,7 @@ if __name__ == "__main__":
                 for schema_violation in schema_violations:
                     print(f" * {schema_violation}")
             
-            with psycopg2.connect(**psycopg2config) as conn:
+            with psycopg2.connect(**psycopg2config, dbname=db_name) as conn:
                 with conn.cursor() as cur:
                     # create the table if necessary
                     cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = '" + table_name + "');")

@@ -1,5 +1,11 @@
 Automatic table creation based on a YAML config.
 
-The filepath to the YAML config should be supplied via environment variable.
+The filepath to the YAML config should be supplied via build-time argument CONFIG_PATH.
 
-The type of tables to create should be supplied via environment varaible.
+The following environment variables need to be included:
+
+- DATABASE_HOST
+- DATABASE_PORT
+- DATABASE_USERNAME
+- DATABASE_PASSWORD
+- DATABASE_TYPE, which describes the types of tables to create.
