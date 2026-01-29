@@ -7,7 +7,7 @@ ARG CONFIG_PATH="./../../config.yml"
 
 # populate files (including requirements.txt)
 COPY . .
-COPY CONFIG_PATH .
+COPY ${CONFIG_PATH} .
 
 # install required python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
