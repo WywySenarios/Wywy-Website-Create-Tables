@@ -6,7 +6,7 @@ WORKDIR /apps/create_tables
 ARG CONFIG_PATH="./../../config.yml"
 
 # populate files (including requirements.txt)
-COPY . .
+COPY ./apps/create_tables .
 COPY ${CONFIG_PATH} .
 
 # install required python packages
