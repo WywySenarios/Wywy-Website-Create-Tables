@@ -2,12 +2,8 @@ FROM python:3.14.0-slim-bookworm
 # default build-time working directory
 WORKDIR /apps/create_tables
 
-# bulid parameters
-ARG CONFIG_PATH="./../../config.yml"
-
 # populate files (including requirements.txt)
 COPY ./apps/create_tables .
-COPY ${CONFIG_PATH} .
 
 # install required python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -1,6 +1,6 @@
 Automatic table creation based on a YAML config.
 
-The filepath to the YAML config should be supplied via build-time argument CONFIG_PATH.
+The YAML config should be supplied via docker volume.
 
 The following environment variables need to be included:
 
