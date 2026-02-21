@@ -8,4 +8,4 @@ The following environment variables need to be included:
 - DATABASE_PORT
 - DATABASE_USERNAME
 - DATABASE_PASSWORD
-- DATABASE_TYPE, which describes the types of tables to create.
+- SYNC_STATUS, which describes whether or not the sync status table should be created. Defaults to False.

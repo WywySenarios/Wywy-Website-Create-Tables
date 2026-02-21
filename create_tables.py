@@ -6,143 +6,29 @@
 @TODO more descriptive logging & verbosity settings
 """
 # imports
-from os import environ as env
+from os import environ
+from constants import *
+from utils import to_lower_snake_case
 from typing import List, Literal
-import re
 import psycopg2
 from psycopg2 import sql
-import yaml
+import sync_status
 
-# Constants
-RESERVED_DATABASE_NAMES = ["info"]
-RESERVED_TABLE_NAMES = []
-RESERVED_TABLE_SUFFIXES = ["tags", "tag_aliases", "tag_names", "tag_groups", "descriptors"]
-RESERVED_COLUMN_NAMES = ["id", "user", "users", "primary_tag"]
-RESERVED_COLUMN_SUFFIXES  = ["comments"]
-PSQLDATATYPES: dict[str, str] = {
-    "int": "integer",
-    "integer": "integer",
-    "float": "real",
-    "number": "real",
-    "double": "double precision",
-    "str": "text",
-    "string": "text",
-    "text": "text",
-    "bool": "boolean",
-    "boolean": "boolean",
-    "date": "date",
-    "time": "time",
-    "timestamp": "timestamp",
-    "interval": "interval",
-    "enum": "enum"
-}
-CONSTRAINT_NAMES = {
-    "pkey": "pkey",
-    "not_null": "not_null",
-    "min": "min",
-    "max": "max",
-    "values": "values",
-    "fkey": "fkey", # requires additional params afterward
-    "unique": "unique",
-    # "default": "default",
-}
+def ensure_database_exists(conn, cur, database_name: str) -> None:
+    """ensures that the respective database exists.
 
-psycopg2config: dict = {
-    "host": env["DATABASE_HOST"],
-    "port": env["DATABASE_PORT"],
-    "user": env["DATABASE_USERNAME"],
-    "password": env["DATABASE_PASSWORD"],
-    "sslmode": "prefer"
-}
-
-# peak at config
-with open("config.yml", "r") as file:
-    config = yaml.safe_load(file)
-
-def to_snake_case(target: str) -> str:
-    """Attempts to convert from regular words/sentences to snake_case. This will not affect strings already in underscore notation. (Does not work with camelCase)
-    @param target
-    @return Returns underscore notation string. e.g. "hi I am Wywy" -> "hi_I_am_Wywy"
+    Args:
+        conn: The database connection. This must have auto commit on.
+        cur: The cursor to execute SQL queries with.
+        database_name (str): The name of the database that should exist.
     """
-    stringFrags: List[str] = re.split(r"[\.\ \-]", target)
     
-    output: str = ""
+    cur.execute(sql.SQL("SELECT EXISTS (SELECT FROM pg_database WHERE datname = %s);"), (db_name,))
+    dbExists = cur.fetchone()[0]
     
-    for i in stringFrags:
-        output += i + "_"
-    
-    return output[:-1] # remove trailing underscore with "[:-1]"
-
-def to_lower_snake_case(target: str) -> str:
-    """Attempts to convert from regular words/sentences to lower_snake_case. This will not affect strings already in underscore notation. (Does not work with camelCase)
-    @param target
-    @return Returns lower_snake_case string. e.g. "hi I am Wywy" -> "hi_i_am_wywy"
-    """
-    stringFrags: List[str] = re.split(r"[\.\ \-]", target)
-    
-    output: str = ""
-    
-    for i in stringFrags:
-        output += i.lower() + "_"
-    
-    return output[:-1] # remove trailing underscore with "[:-1]"
-
-def add_info_table() -> None:
-    conn = psycopg2.connect(**psycopg2config)
-    conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-    
-    # create info db if necessary
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT EXISTS (SELECT FROM pg_database WHERE datname = %s);", ("info",))
-            dbExists = cur.fetchone()[0]
-            
-            if not dbExists:
-                try:
-                    cur.execute("CREATE DATABASE info;")
-                except psycopg2.errors.DuplicateDatabase:
-                    pass
-    finally:
-        conn.close()
-    
-    # create the info table
-    with psycopg2.connect(**psycopg2config, dbname="info") as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = 'sync_status');")
-            tableExists = cur.fetchone()[0]
-            
-            if tableExists:
-                print("Table \"sync_status\" already exists in database \"info\"; skipping creation.")
-            else:
-                cur.execute("""
-                    DO $$
-                    BEGIN
-                        IF NOT EXISTS (
-                            SELECT 1 FROM pg_type WHERE typname = 'sync_status_enum'
-                        ) THEN
-                            CREATE TYPE sync_status_enum AS ENUM (
-                                'already exists',
-                                'added',
-                                'mismatch',
-                                'failed',
-                                'anomalous'
-                            );
-                        END IF;
-                    END
-                    $$;
-
-                    CREATE TABLE sync_status (
-                        id SERIAL PRIMARY KEY,
-                        table_name TEXT NOT NULL,
-                        parent_table_name TEXT NOT NULL,
-                        table_type TEXT NOT NULL,
-                        database_name TEXT NOT NULL,
-                        entry_id TEXT NOT NULL,
-                        remote_id TEXT NULL,
-                        sync_timestamp TIMESTAMPTZ NULL,
-                        status sync_status_enum NULL
-                    );
-                """)
+    if not dbExists:
+        cur.execute(sql.SQL("CREATE DATABASE {};").format(sql.Identifier(db_name)))
+        print(f"Created database {db_name}")
 
 def validate_name(name: str, reserved_names: List[str]) -> bool:
     """
@@ -386,7 +272,7 @@ def enforce_descriptor_tables(conn, table_schema: dict) -> bool:
 if __name__ == "__main__":
     print("Attempting to create tables based on config.yml...")
     # loop through every database that has tables to be created
-    for dbInfo in config["data"]:
+    for dbInfo in CONFIG["data"]:
         # immediately exit if the database name is empty
         if not "dbname" in dbInfo or dbInfo["dbname"] is None or not type(dbInfo["dbname"]) is str or len(dbInfo["dbname"]) == 0:
             print("Databases must have names under the key \"dbname\". Skipping the creation of a nameless database.")
@@ -406,19 +292,10 @@ if __name__ == "__main__":
         
         # check if the table already exists
         # @TODO reduce the number of with statements
-        conn = psycopg2.connect(**psycopg2config, dbname=None)
-        conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-
-        try:
+        with psycopg2.connect(**CONN_CONFIG, dbname=None) as conn:
+            conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
             with conn.cursor() as cur:
-                cur.execute(sql.SQL("SELECT EXISTS (SELECT FROM pg_database WHERE datname = %s);"), (db_name,))
-                dbExists = cur.fetchone()[0]
-                
-                if not dbExists:
-                    cur.execute(sql.SQL("CREATE DATABASE {};").format(sql.Identifier(db_name)))
-                    print(f"Created database {db_name}")
-        finally:
-            conn.close()
+                ensure_database_exists(conn, cur, db_name)
 
         # loop through every table that needs to be created @TODO verify config validity to avoid errors
         for tableInfo in dbInfo.get("tables", []):
@@ -473,7 +350,7 @@ if __name__ == "__main__":
                 for schema_violation in schema_violations:
                     print(f" * {schema_violation}")
             
-            with psycopg2.connect(**psycopg2config, dbname=db_name) as conn:
+            with psycopg2.connect(**CONN_CONFIG, dbname=db_name) as conn:
                 with conn.cursor() as cur:
                     # create the table if necessary
                     cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = '" + table_name + "');")
@@ -497,5 +374,11 @@ if __name__ == "__main__":
                     enforce_reserved_columns(conn, tableInfo)
             print(f"Finished creating table {db_name}/{table_name}.")
     
-    add_info_table()
+    with psycopg2.connect(**CONN_CONFIG) as conn:
+        with conn.cursor() as cur:
+            ensure_database_exists(conn, cur, "info")
+    
+    if environ.get("SYNC_STATUS", "false").lower() == "true":
+        sync_status.main()
+    
     print("Finished creating tables.")
