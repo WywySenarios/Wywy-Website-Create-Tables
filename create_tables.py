@@ -296,6 +296,9 @@ if __name__ == "__main__":
             conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
             with conn.cursor() as cur:
                 ensure_database_exists(conn, cur, db_name)
+                
+                # verify that the required packages are installed
+                cur.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
 
         # loop through every table that needs to be created @TODO verify config validity to avoid errors
         for tableInfo in dbInfo.get("tables", []):
