@@ -89,24 +89,35 @@ def enforce_column(conn, table_name: str, column_schema: dict) -> bool:
             is_datatype_correct: bool = cur.fetchone()[0] == PSQLDATATYPES[column_schema["datatype"]]
             if not is_datatype_correct: return False
         else:
-            # create enum columns in a special way
-            if column_schema["datatype"] == "enum":
-                cur.execute(sql.SQL("""
-                                        CREATE TYPE {} AS ENUM ({});
-                                        ALTER TABLE {} ADD COLUMN {} {};
+            match (column_schema["datatype"]):
+                case "enum":
+                    cur.execute(sql.SQL("""
+                                            CREATE TYPE {} AS ENUM ({});
+                                            ALTER TABLE {} ADD COLUMN {} {};
+                                            """).format(
+                                                sql.Identifier(f"{table_name}_{column_name}_enum"),
+                                                sql.SQL(", ").join(map(sql.Literal, column_schema["values"])),
+                                                sql.Identifier(table_name),
+                                                sql.Identifier(column_name),
+                                                sql.Identifier(f"{table_name}_{column_name}_enum")
+                                            ))
+                case "geodetic point":
+                    cur.execute(sql.SQL("""
+                                        ALTER TABLE {table_name} ADD COLUMN {ST_Point_column_name} ST_Point;
+                                        ALTER TABLE {table_name} ADD COLUMN {latlong_accuracy_column_name} double precision;
+                                        ALTER TABLE {table_name} ADD COLUMN {altitude_accuracy_column_name} double precision;
                                         """).format(
-                                            sql.Identifier(f"{table_name}_{column_name}_enum"),
-                                            sql.SQL(", ").join(map(sql.Literal, column_schema["values"])),
-                                            sql.Identifier(table_name),
-                                            sql.Identifier(column_name),
-                                            sql.Identifier(f"{table_name}_{column_name}_enum")
+                                            table_name=sql.Identifier(table_name),
+                                            ST_Point_column_name=sql.Identifier(column_name),
+                                            latlong_accuracy_column_name=sql.Identifier(f"{column_name}_latlong_accuracy"),
+                                            altitude_accuracy_column_name=sql.Identifier(f"{column_name}_altitude_accuracy")
                                         ))
-            else:
-                cur.execute(sql.SQL("ALTER TABLE {} ADD {} {};").format(
-                    sql.Identifier(table_name),
-                    sql.Identifier(column_name),
-                    sql.SQL(PSQLDATATYPES[column_schema["datatype"]])
-                ))
+                case _:
+                    cur.execute(sql.SQL("ALTER TABLE {} ADD {} {};").format(
+                        sql.Identifier(table_name),
+                        sql.Identifier(column_name),
+                        sql.SQL(PSQLDATATYPES[column_schema["datatype"]])
+                    ))
 
     # remove existing constraints
     with conn.cursor() as cur:
