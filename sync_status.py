@@ -1,3 +1,6 @@
+import psycopg2
+from constants import CONN_CONFIG
+
 def main():
     # create the info table
     with psycopg2.connect(**CONN_CONFIG, dbname="info") as conn:
