@@ -8,13 +8,18 @@
 # imports
 from os import environ
 from constants import *
-from utils import to_lower_snake_case
+from config import CONFIG
+from data_types import TableInfo, DataColumn
+from utils import to_lower_snake_case, select_result_is_true
 from typing import List, Literal
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg.connection import Connection
+from psycopg.cursor import Cursor
+from psycopg import sql
 import sync_status
 
-def ensure_database_exists(conn, cur, database_name: str) -> None:
+
+def ensure_database_exists(conn: Connection, cur: Cursor, database_name: str) -> None:
     """ensures that the respective database exists.
 
     Args:
@@ -23,12 +28,10 @@ def ensure_database_exists(conn, cur, database_name: str) -> None:
         database_name (str): The name of the database that should exist.
     """
     
-    cur.execute(sql.SQL("SELECT EXISTS (SELECT FROM pg_database WHERE datname = %s);"), (db_name,))
-    dbExists = cur.fetchone()[0]
-    
-    if not dbExists:
-        cur.execute(sql.SQL("CREATE DATABASE {};").format(sql.Identifier(db_name)))
-        print(f"Created database {db_name}")
+    cur.execute("SELECT EXISTS (SELECT FROM pg_database WHERE datname = %s);", (database_name,))
+    if not select_result_is_true(cur):
+        cur.execute(sql.SQL("CREATE DATABASE {};").format(sql.Identifier(database_name)))
+        print(f"Created database {database_name}.")
 
 def validate_name(name: str, reserved_names: List[str]) -> bool:
     """
@@ -52,7 +55,7 @@ def validate_suffix(name: str, reserved_suffixes: List[str]) -> bool:
             return False
     return True
 
-def table_exists(conn, table_name: str) -> bool:
+def table_exists(conn: Connection, table_name: str) -> bool:
     """Checks if the given table exists inside the database related to the connection.
     @param conn the connection to the database that may contain the given table.
     @param table_name the table to check for
@@ -60,9 +63,10 @@ def table_exists(conn, table_name: str) -> bool:
     """
     with conn.cursor() as cur:
         cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = %s);", (table_name,))
-        return cur.fetchone()[0]
+        
+        return select_result_is_true(cur)
 
-def column_exists(conn, table_name: str, column_name: str) -> bool:
+def column_exists(conn: Connection, table_name: str, column_name: str) -> bool:
     """Checks if the column inside the given table exists. Assumes that the table already exists.
     @param conn the connection to the database that contains the table that may contain the given column.
     @param table_name the name of the table that may contain the given column.
@@ -71,9 +75,9 @@ def column_exists(conn, table_name: str, column_name: str) -> bool:
     """
     with conn.cursor() as cur:
         cur.execute("SELECT EXISTS (SELECT * FROM information_schema.columns WHERE table_name = %s AND column_name = %s);", (table_name, column_name,))
-        return cur.fetchone()[0]
+        return select_result_is_true(cur)
 
-def enforce_column(conn, table_name: str, column_schema: dict) -> bool:
+def enforce_column(conn: Connection, table_name: str, column_schema: DataColumn) -> bool:
     """Attempts to ensure that the column conforms to the given schema. Assumes that the respective table already exists. Will remove all constraints and repopulate them without necessarily validating previous data. Chooses to keep rather than destroy old data.
     @param conn the connection to the database that contains the table that will contain the given column.
     @param table_name the name of the table that will contain the given column.
@@ -86,7 +90,7 @@ def enforce_column(conn, table_name: str, column_schema: dict) -> bool:
     with conn.cursor() as cur:
         if column_exists(conn, table_name, column_name):
             cur.execute("SELECT data_type FROM information_schema.columns WHERE table_name=%s AND column_name=%s", (table_name, to_lower_snake_case(column_schema["name"]),))
-            is_datatype_correct: bool = cur.fetchone()[0] == PSQLDATATYPES[column_schema["datatype"]]
+            is_datatype_correct: bool = select_result_is_true(cur)
             if not is_datatype_correct: return False
         else:
             match (column_schema["datatype"]):
@@ -96,7 +100,7 @@ def enforce_column(conn, table_name: str, column_schema: dict) -> bool:
                                             ALTER TABLE {} ADD COLUMN {} {};
                                             """).format(
                                                 sql.Identifier(f"{table_name}_{column_name}_enum"),
-                                                sql.SQL(", ").join(map(sql.Literal, column_schema["values"])),
+                                                sql.SQL(", ").join(map(sql.Literal, column_schema["values"])), # type: ignore
                                                 sql.Identifier(table_name),
                                                 sql.Identifier(column_name),
                                                 sql.Identifier(f"{table_name}_{column_name}_enum")
@@ -177,7 +181,7 @@ def enforce_column(conn, table_name: str, column_schema: dict) -> bool:
     return True
 
 
-def enforce_reserved_columns(conn, table_schema: dict) -> bool:
+def enforce_reserved_columns(conn: Connection, table_schema: TableInfo) -> bool:
     """Attempts to ensure that the table's reserved columns conform to its schema. Assumes that the respective tables already exist (the table itself and the tagging tables). (There's almost nothing this function can do to save the table if it doesn't conform to the schema) @TODO
     @param conn the connection to the database that contains the given table.
     @param table_schema the table schema to enforce. This function assumes that table_schema is well-formed.
@@ -234,7 +238,7 @@ TAGGING_TABLE_STATEMENTS: dict[TAGGING_TABLE_NAMES, sql.SQL] = {
                          """),
 }
 
-def enforce_tagging_tables(conn, table_name: str):
+def enforce_tagging_tables(conn: Connection, table_name: str):
     """Creates related tagging tables if necessary, assuming that the table requires tagging.
 
     Args:
@@ -260,7 +264,7 @@ def enforce_tagging_tables(conn, table_name: str):
         if not table_exists(conn, table_name + "_tag_groups"):
             cur.execute(TAGGING_TABLE_STATEMENTS["tag_groups"].format(sql.Identifier(table_name + "_tag_groups"), sql.Identifier(f"{table_name}_tag_names")))
 
-def enforce_descriptor_tables(conn, table_schema: dict) -> bool:
+def enforce_descriptor_tables(conn: Connection, table_schema: TableInfo) -> bool:
     """Creates related descriptor tables if necessary, assuming that the table requires descriptors. @TODO reject invalid configs where there is a collision between different descriptor tables (extremely unlikely if the user is good-faith)
 
     Args:
@@ -270,6 +274,7 @@ def enforce_descriptor_tables(conn, table_schema: dict) -> bool:
     Returns:
         bool: Whether or not the tables already exist or have been created.
     """
+    output: bool = True
     # create one table for every descriptor type.
     for descriptor_schema in table_schema["descriptors"]:
         descriptor_table_name: str = f"{to_lower_snake_case(table_schema["tableName"])}_{to_lower_snake_case(descriptor_schema["name"])}_descriptors"
@@ -278,14 +283,16 @@ def enforce_descriptor_tables(conn, table_schema: dict) -> bool:
                 cur.execute(sql.SQL("CREATE TABLE {} (id SERIAL PRIMARY KEY);").format(sql.Identifier(descriptor_table_name)))
 
         for column_schema in descriptor_schema["schema"]:
-            enforce_column(conn, descriptor_table_name, column_schema)
+            if not enforce_column(conn, descriptor_table_name, column_schema): output = False
+    
+    return output
 
 if __name__ == "__main__":
     print("Attempting to create tables based on config.yml...")
     # loop through every database that has tables to be created
     for dbInfo in CONFIG["data"]:
         # immediately exit if the database name is empty
-        if not "dbname" in dbInfo or dbInfo["dbname"] is None or not type(dbInfo["dbname"]) is str or len(dbInfo["dbname"]) == 0:
+        if not "dbname" in dbInfo or dbInfo["dbname"] or not type(dbInfo["dbname"]) is str or len(dbInfo["dbname"]) == 0:
             print("Databases must have names under the key \"dbname\". Skipping the creation of a nameless database.")
             continue
 
@@ -303,8 +310,7 @@ if __name__ == "__main__":
         
         # check if the table already exists
         # @TODO reduce the number of with statements
-        with psycopg2.connect(**CONN_CONFIG, dbname=None) as conn:
-            conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        with psycopg.connect(**CONN_CONFIG, dbname=None, autocommit=True) as conn:
             with conn.cursor() as cur:
                 ensure_database_exists(conn, cur, db_name)
                 
@@ -314,7 +320,7 @@ if __name__ == "__main__":
         # loop through every table that needs to be created @TODO verify config validity to avoid errors
         for tableInfo in dbInfo.get("tables", []):
             # immediately skip if the table is nameless
-            if not "tableName" in tableInfo or tableInfo["tableName"] is None or not type(tableInfo["tableName"]) is str or len(tableInfo["tableName"]) == 0:
+            if not "tableName" in tableInfo or not type(tableInfo["tableName"]) is str or len(tableInfo["tableName"]) == 0:
                 print(f"Tables must have a non-empty name specified in key \"tableName\". Skipping creation of a nameless table in {db_name}.")
                 continue
             # convert to lower_snake_case
@@ -327,11 +333,11 @@ if __name__ == "__main__":
 
             # avoid reserved table names
             if not validate_name(table_name, RESERVED_TABLE_NAMES):
-                schema_violations.append(f"\"{tableInfo["table_name"]}\" is a reserved table name.")
+                schema_violations.append(f"\"{tableInfo["tableName"]}\" is a reserved table name.")
 
             # avoid reserved table suffixes
             if not validate_suffix(table_name, RESERVED_TABLE_SUFFIXES):
-                schema_violations.append(f"\"{tableInfo["table_name"]}\" contains a reserved table suffix ({RESERVED_TABLE_SUFFIXES}).")
+                schema_violations.append(f"\"{tableInfo["tableName"]}\" contains a reserved table suffix ({RESERVED_TABLE_SUFFIXES}).")
                 
             # there are 1+ columns
             if not "schema" in tableInfo or not (type(tableInfo["schema"]) is List or type(tableInfo["schema"]) is list) or len(tableInfo["schema"]) < 1 or not tableInfo["schema"]:
@@ -348,8 +354,8 @@ if __name__ == "__main__":
                 # descriptor validity
                 for descriptor_schema in tableInfo["descriptors"]:
                     # require descriptor names. These names are subject to the same rules as column names.
-                    if "name" not in descriptor_schema or not isinstance(descriptor_schema["name"], str) or len(descriptor_schema["schema"]) == 0:
-                        schema_violations.append(f"Table {tableInf["tableName"]} contains a nameless descriptor.")
+                    if "name" not in descriptor_schema or len(descriptor_schema["schema"]) == 0:
+                        schema_violations.append(f"Table {tableInfo["tableName"]} contains a nameless descriptor.")
                         continue
 
                     # @TODO avoid reserved column names
@@ -364,11 +370,11 @@ if __name__ == "__main__":
                 for schema_violation in schema_violations:
                     print(f" * {schema_violation}")
             
-            with psycopg2.connect(**CONN_CONFIG, dbname=db_name) as conn:
+            with psycopg.connect(**CONN_CONFIG, dbname=db_name) as conn:
                 with conn.cursor() as cur:
                     # create the table if necessary
-                    cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = '" + table_name + "');")
-                    tableExists = cur.fetchone()[0]
+                    cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = %s);", (table_name,))
+                    tableExists = select_result_is_true(cur)
                     if not tableExists:
                         cur.execute(sql.SQL("CREATE TABLE {} (id SERIAL PRIMARY KEY);").format(sql.Identifier(table_name)))
                     
@@ -388,7 +394,7 @@ if __name__ == "__main__":
                     enforce_reserved_columns(conn, tableInfo)
             print(f"Finished creating table {db_name}/{table_name}.")
     
-    with psycopg2.connect(**CONN_CONFIG) as conn:
+    with psycopg.connect(**CONN_CONFIG, autocommit=True) as conn:
         with conn.cursor() as cur:
             ensure_database_exists(conn, cur, "info")
     

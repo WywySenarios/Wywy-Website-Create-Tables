@@ -1,18 +1,19 @@
 from os import environ
-import yaml
+from typing import Literal
+from data_types import Datatype, PostgresDatatype
 
 # Constants
 RESERVED_DATABASE_NAMES = ["info"]
-RESERVED_TABLE_NAMES = []
+RESERVED_TABLE_NAMES: list[str] = []
 RESERVED_TABLE_SUFFIXES = ["tags", "tag_aliases", "tag_names", "tag_groups", "descriptors"]
 RESERVED_COLUMN_NAMES = ["id", "user", "users", "primary_tag"]
 RESERVED_COLUMN_SUFFIXES  = ["comments"]
-PSQLDATATYPES: dict[str, str] = {
+PSQLDATATYPES: dict[Datatype, PostgresDatatype] = {
     "int": "integer",
     "integer": "integer",
     "float": "real",
     "number": "real",
-    "double": "double precision",
+    # "double": "double precision",
     "str": "text",
     "string": "text",
     "text": "text",
@@ -21,8 +22,9 @@ PSQLDATATYPES: dict[str, str] = {
     "date": "date",
     "time": "time",
     "timestamp": "timestamp",
-    "interval": "interval",
+    # "interval": "interval",
     "enum": "enum",
+    "geodetic point": "ST_Point",
 }
 CONSTRAINT_NAMES = {
     "pkey": "pkey",
@@ -35,14 +37,10 @@ CONSTRAINT_NAMES = {
     # "default": "default",
 }
 
-CONN_CONFIG: dict = {
+CONN_CONFIG: dict[Literal["host", "port", "user", "password", "sslmode"], str] = {
     "host": environ["DATABASE_HOST"],
     "port": environ["DATABASE_PORT"],
     "user": environ["DATABASE_USERNAME"],
     "password": environ["DATABASE_PASSWORD"],
     "sslmode": "prefer"
 }
-
-# peak at config
-with open("config.yml", "r") as file:
-    CONFIG = yaml.safe_load(file)
