@@ -1,6 +1,6 @@
 from os import environ
 from typing import Literal
-from data_types import Datatype, PostgresDatatype
+from Wywy_Website_Types import Datatype, PostgresDatatype
 
 # Constants
 RESERVED_DATABASE_NAMES = ["info"]

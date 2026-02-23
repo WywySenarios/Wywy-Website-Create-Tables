@@ -9,7 +9,7 @@
 from os import environ
 from constants import *
 from config import CONFIG
-from data_types import TableInfo, DataColumn
+from Wywy_Website_Types import TableInfo, DataColumn
 from utils import to_lower_snake_case, select_result_is_true
 from typing import List, Literal
 import psycopg
