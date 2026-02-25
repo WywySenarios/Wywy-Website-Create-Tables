@@ -292,7 +292,7 @@ if __name__ == "__main__":
     # loop through every database that has tables to be created
     for dbInfo in CONFIG["data"]:
         # immediately exit if the database name is empty
-        if not "dbname" in dbInfo or dbInfo["dbname"] or not type(dbInfo["dbname"]) is str or len(dbInfo["dbname"]) == 0:
+        if not "dbname" in dbInfo or not type(dbInfo["dbname"]) is str or len(dbInfo["dbname"]) == 0:
             print("Databases must have names under the key \"dbname\". Skipping the creation of a nameless database.")
             continue
 
