@@ -107,7 +107,7 @@ def enforce_column(conn: Connection, table_name: str, column_schema: DataColumn)
                                             ))
                 case "geodetic point":
                     cur.execute(sql.SQL("""
-                                        ALTER TABLE {table_name} ADD COLUMN {ST_Point_column_name} ST_Point;
+                                        ALTER TABLE {table_name} ADD COLUMN {ST_Point_column_name} geography(POINT, 4326);
                                         ALTER TABLE {table_name} ADD COLUMN {latlong_accuracy_column_name} double precision;
                                         ALTER TABLE {table_name} ADD COLUMN {altitude_accuracy_column_name} double precision;
                                         """).format(
