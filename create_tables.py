@@ -314,7 +314,9 @@ if __name__ == "__main__":
             with conn.cursor() as cur:
                 ensure_database_exists(conn, cur, db_name)
                 
-                # verify that the required packages are installed
+        # verify that the required packages are installed
+        with psycopg.connect(**CONN_CONFIG, dbname=db_name, autocommit=True) as conn:
+            with conn.cursor() as cur:
                 cur.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
 
         # loop through every table that needs to be created @TODO verify config validity to avoid errors
