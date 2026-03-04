@@ -143,6 +143,7 @@ def enforce_column(
                             """
                                         ALTER TABLE {table_name} ADD COLUMN {ST_Point_column_name} geography(POINTZ, 4326);
                                         ALTER TABLE {table_name} ADD COLUMN {latlong_accuracy_column_name} double precision;
+                                        ALTER TABLE {table_name} ADD COLUMN {altitude_column_name} double precision;
                                         ALTER TABLE {table_name} ADD COLUMN {altitude_accuracy_column_name} double precision;
                                         """
                         ).format(
@@ -150,6 +151,9 @@ def enforce_column(
                             ST_Point_column_name=sql.Identifier(column_name),
                             latlong_accuracy_column_name=sql.Identifier(
                                 f"{column_name}_latlong_accuracy"
+                            ),
+                            altitude_column_name=sql.Identifier(
+                                f"{column_name}_altitude"
                             ),
                             altitude_accuracy_column_name=sql.Identifier(
                                 f"{column_name}_altitude_accuracy"
