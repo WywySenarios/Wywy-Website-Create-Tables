@@ -4,10 +4,16 @@ from Wywy_Website_Types import Datatype, PostgresDatatype
 
 # Constants
 RESERVED_DATABASE_NAMES = ["info"]
-RESERVED_TABLE_NAMES: list[str] = []
-RESERVED_TABLE_SUFFIXES = ["tags", "tag_aliases", "tag_names", "tag_groups", "descriptors"]
+RESERVED_TABLE_NAMES: list[str] = ["sync_status"]
+RESERVED_TABLE_SUFFIXES = [
+    "tags",
+    "tag_aliases",
+    "tag_names",
+    "tag_groups",
+    "descriptors",
+]
 RESERVED_COLUMN_NAMES = ["id", "user", "users", "primary_tag"]
-RESERVED_COLUMN_SUFFIXES  = ["comments"]
+RESERVED_COLUMN_SUFFIXES = ["comments"]
 PSQLDATATYPES: dict[Datatype, PostgresDatatype] = {
     "int": "integer",
     "integer": "integer",
@@ -32,7 +38,7 @@ CONSTRAINT_NAMES = {
     "min": "min",
     "max": "max",
     "values": "values",
-    "fkey": "fkey", # requires additional params afterward
+    "fkey": "fkey",  # requires additional params afterward
     "unique": "unique",
     # "default": "default",
 }
@@ -42,5 +48,5 @@ CONN_CONFIG: dict[Literal["host", "port", "user", "password", "sslmode"], str] =
     "port": environ["DATABASE_PORT"],
     "user": environ["DATABASE_USERNAME"],
     "password": environ["DATABASE_PASSWORD"],
-    "sslmode": "prefer"
+    "sslmode": "prefer",
 }
