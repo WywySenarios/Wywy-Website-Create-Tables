@@ -77,6 +77,18 @@ def main():
                     )
 
                 data_cur.execute(
+                    sql.SQL(
+                        """DROP USER MAPPING IF EXISTS FOR PUBLIC SERVER sync_status_server;
+                    CREATE USER MAPPING FOR PUBLIC
+                    SERVER sync_status_server
+                    OPTIONS (user {user}, password {password});"""
+                    ).format(
+                        user=sql.Literal(CONN_CONFIG["user"]),
+                        password=sql.Literal(CONN_CONFIG["password"]),
+                    )
+                )
+
+                data_cur.execute(
                     """
                     DO $$
                     BEGIN
