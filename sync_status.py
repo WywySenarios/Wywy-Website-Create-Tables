@@ -52,7 +52,7 @@ def main():
         database_name = to_lower_snake_case(databaseInfo["dbname"])
         with psycopg.connect(**CONN_CONFIG, dbname=database_name) as data_conn:
             with data_conn.cursor() as data_cur:
-                data_cur.execute("CREATE EXTENSION postgres_fdw;")
+                data_cur.execute("CREATE EXTENSION IF NOT EXISTS postgres_fdw;")
 
                 # foreign tables server
                 data_cur.execute(
