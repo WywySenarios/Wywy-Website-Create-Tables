@@ -2,17 +2,23 @@ import psycopg
 from constants import CONN_CONFIG
 from utils import select_result_is_true
 
+
 def main():
     # create the info table
     with psycopg.connect(**CONN_CONFIG, dbname="info") as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = 'sync_status');")
+            cur.execute(
+                "SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = 'sync_status');"
+            )
             tableExists = select_result_is_true(cur)
-            
+
             if tableExists:
-                print("Table \"sync_status\" already exists in database \"info\"; skipping creation.")
+                print(
+                    'Table "sync_status" already exists in database "info"; skipping creation.'
+                )
             else:
-                cur.execute("""
+                cur.execute(
+                    """
                     DO $$
                     BEGIN
                         IF NOT EXISTS (
@@ -40,4 +46,6 @@ def main():
                         sync_timestamp TIMESTAMPTZ NULL,
                         status sync_status_enum NULL
                     );
-                """)
+                """
+                )
+                print("Finished creating table info/sync_status.")
