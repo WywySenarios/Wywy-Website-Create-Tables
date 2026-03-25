@@ -252,7 +252,9 @@ def enforce_reserved_columns(conn: Connection, table_schema: TableInfo) -> bool:
                 conn, table_name, "primary_tag"
             ):  # @TODO check constraints
                 cur.execute(
-                    sql.SQL("ALTER TABLE {} ADD COLUMN primary_tag INT;").format(
+                    sql.SQL(
+                        "ALTER TABLE {} ADD COLUMN primary_tag INT NOT NULL;"
+                    ).format(
                         sql.Identifier(table_name),
                     )
                 )
