@@ -1,8 +1,11 @@
+import logging
 import psycopg
 from psycopg import sql
 from constants import CONN_CONFIG
 from config import CONFIG
 from utils import select_result_is_true, to_lower_snake_case
+
+logger = logging.getLogger()
 
 
 def main():
@@ -44,7 +47,7 @@ def main():
                     status sync_status_enum NULL
                 )"""
             )
-            print("Table info/sync_status is ready.")
+            logger.info("Table info/sync_status is ready.")
 
     # ensure there are foreign tables
     # @TODO reserve table name "sync_status" inside create_tables code
@@ -134,4 +137,4 @@ def main():
                     $$;
                     """
                 )
-                print(f"Table {database_name}/sync_status is ready.")
+                logger.info(f"Table {database_name}/sync_status is ready.")

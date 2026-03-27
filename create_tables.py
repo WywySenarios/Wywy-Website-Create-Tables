@@ -7,6 +7,8 @@
 """
 
 # imports
+import os
+import logging
 from os import environ
 from constants import *
 from config import CONFIG
@@ -36,7 +38,7 @@ def ensure_database_exists(conn: Connection, cur: Cursor, database_name: str) ->
         cur.execute(
             sql.SQL("CREATE DATABASE {};").format(sql.Identifier(database_name))
         )
-        print(f"Created database {database_name}.")
+        logger.info(f"Created database {database_name}.")
 
 
 def validate_name(name: str, reserved_names: List[str]) -> bool:
@@ -391,7 +393,40 @@ def enforce_descriptor_tables(conn: Connection, table_schema: TableInfo) -> bool
 
 
 if __name__ == "__main__":
-    print("Attempting to create tables based on config.yml...")
+    service_name = os.getenv("SERVICE_NAME")
+    if service_name is None:
+        raise RuntimeError("Missing logging target.")
+
+    # START - logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    verbose_formatter = logging.Formatter(
+        "{levelname} {asctime} {module} {process:d} {thread:d} {message}", style="{"
+    )
+    simple_formatter = logging.Formatter("{levelname} {message}", style="{")
+
+    file_handler = logging.FileHandler(
+        f"/var/log/Wywy-Website/{service_name}/create_tables.log"
+    )
+    file_handler.setLevel(logging.INFO)  # @TODO configure this
+    file_handler.setFormatter(simple_formatter)
+    debug_file_handler = logging.FileHandler(
+        f"/var/log/Wywy-Website/{service_name}/create_tables-debug.log"
+    )
+    debug_file_handler.setLevel(logging.DEBUG)
+    debug_file_handler.setFormatter(verbose_formatter)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(simple_formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(debug_file_handler)
+    logger.addHandler(console_handler)
+    # END - logger
+
+    # @TODO validate tables
+    logging.info("Ready to create tables.")
     # loop through every database that has tables to be created
     for dbInfo in CONFIG["data"]:
         # immediately exit if the database name is empty
@@ -400,8 +435,8 @@ if __name__ == "__main__":
             or not type(dbInfo["dbname"]) is str
             or len(dbInfo["dbname"]) == 0
         ):
-            print(
-                'Databases must have names under the key "dbname". Skipping the creation of a nameless database.'
+            logger.warning(
+                'Config violation: Databases must have names under the key "dbname". Skipping the creation of a nameless database.'
             )
             continue
 
@@ -413,11 +448,11 @@ if __name__ == "__main__":
             schema_violations.append(f"{db_name} is a reserved database name.")
 
         if len(schema_violations) > 0:
-            print(
-                f"Skipping creation of database {db_name} due to schema {"violation" if len(schema_violations) == 1 else "violations"}"
+            logger.warning(
+                f"Config violation: Skipping creation of database {db_name} due to schema {"violation" if len(schema_violations) == 1 else "violations"}"
             )
             for schema_violation in schema_violations:
-                print(f" * {schema_violation}")
+                logger.warning(f"Config violation: {schema_violation}")
 
         # check if the table already exists
         # @TODO reduce the number of with statements
@@ -438,8 +473,8 @@ if __name__ == "__main__":
                 or not type(tableInfo["tableName"]) is str
                 or len(tableInfo["tableName"]) == 0
             ):
-                print(
-                    f'Tables must have a non-empty name specified in key "tableName". Skipping creation of a nameless table in {db_name}.'
+                logger.warning(
+                    f'Config violation: Tables must have a non-empty name specified in key "tableName". Skipping creation of a nameless table in {db_name}.'
                 )
                 continue
             # convert to lower_snake_case
@@ -518,11 +553,11 @@ if __name__ == "__main__":
                             f"Descriptor {descriptor_schema["name"]} in table {tableInfo["tableName"]} must have a schema that consists of an array of columns schemas."
                         )
             if len(schema_violations) > 0:
-                print(
-                    f"Skipping creation of table {db_name}/{table_name} due to schema {"violation" if len(schema_violations) == 1 else "violations"}:"
+                logger.warning(
+                    f"Config violation: Skipping creation of table {db_name}/{table_name} due to schema {"violation" if len(schema_violations) == 1 else "violations"}:"
                 )
                 for schema_violation in schema_violations:
-                    print(f" * {schema_violation}")
+                    logger.warning(f"Config violation:  {schema_violation}")
 
             with psycopg.connect(**CONN_CONFIG, dbname=db_name) as conn:
                 with conn.cursor() as cur:
@@ -553,7 +588,7 @@ if __name__ == "__main__":
 
                     # add in the reserved columns
                     enforce_reserved_columns(conn, tableInfo)
-            print(f"Finished creating table {db_name}/{table_name}.")
+            logger.info(f"Table {db_name}/{table_name} is ready.")
 
     with psycopg.connect(**CONN_CONFIG, autocommit=True) as conn:
         with conn.cursor() as cur:
@@ -562,4 +597,4 @@ if __name__ == "__main__":
     if environ.get("SYNC_STATUS", "false").lower() == "true":
         sync_status.main()
 
-    print("Finished creating tables.")
+    logger.info("Finished creating tables.")
