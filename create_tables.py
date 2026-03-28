@@ -393,10 +393,6 @@ def enforce_descriptor_tables(conn: Connection, table_schema: TableInfo) -> bool
 
 
 if __name__ == "__main__":
-    service_name = os.getenv("SERVICE_NAME")
-    if service_name is None:
-        raise RuntimeError("Missing logging target.")
-
     # START - logger
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
@@ -407,12 +403,12 @@ if __name__ == "__main__":
     simple_formatter = logging.Formatter("{levelname} {message}", style="{")
 
     file_handler = logging.FileHandler(
-        f"/var/log/Wywy-Website/{service_name}/create_tables.log"
+        f"/var/log/Wywy-Website/create_tables/create_tables.log"
     )
     file_handler.setLevel(logging.INFO)  # @TODO configure this
     file_handler.setFormatter(simple_formatter)
     debug_file_handler = logging.FileHandler(
-        f"/var/log/Wywy-Website/{service_name}/create_tables-debug.log"
+        f"/var/log/Wywy-Website/create_tables/create_tables-debug.log"
     )
     debug_file_handler.setLevel(logging.DEBUG)
     debug_file_handler.setFormatter(verbose_formatter)
