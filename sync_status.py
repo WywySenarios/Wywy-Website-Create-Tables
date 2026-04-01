@@ -21,9 +21,8 @@ def main():
                         SELECT 1 FROM pg_type WHERE typname = 'sync_status_enum'
                     ) THEN
                         CREATE TYPE sync_status_enum AS ENUM (
-                            'already exists',
-                            'added',
-                            'mismatch',
+                            'modified',
+                            'updated',
                             'failed',
                             'anomalous'
                         );
