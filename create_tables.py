@@ -7,7 +7,6 @@
 """
 
 # imports
-import os
 import logging
 from os import environ
 from constants import *
@@ -126,12 +125,10 @@ def enforce_column(
             match (column_schema["datatype"]):
                 case "enum":
                     cur.execute(
-                        sql.SQL(
-                            """
+                        sql.SQL("""
                                             CREATE TYPE {} AS ENUM ({});
                                             ALTER TABLE {} ADD COLUMN {} {};
-                                            """
-                        ).format(
+                                            """).format(
                             sql.Identifier(f"{table_name}_{column_name}_enum"),
                             sql.SQL(", ").join(map(sql.Literal, column_schema["values"])),  # type: ignore
                             sql.Identifier(table_name),
@@ -141,14 +138,12 @@ def enforce_column(
                     )
                 case "geodetic point":
                     cur.execute(
-                        sql.SQL(
-                            """
+                        sql.SQL("""
                                         ALTER TABLE {table_name} ADD COLUMN {ST_Point_column_name} geography(POINT, 4326);
                                         ALTER TABLE {table_name} ADD COLUMN {latlong_accuracy_column_name} double precision;
                                         ALTER TABLE {table_name} ADD COLUMN {altitude_column_name} double precision;
                                         ALTER TABLE {table_name} ADD COLUMN {altitude_accuracy_column_name} double precision;
-                                        """
-                        ).format(
+                                        """).format(
                             table_name=sql.Identifier(table_name),
                             ST_Point_column_name=sql.Identifier(column_name),
                             latlong_accuracy_column_name=sql.Identifier(
@@ -277,40 +272,32 @@ def enforce_reserved_columns(conn: Connection, table_schema: TableInfo) -> bool:
 
 TAGGING_TABLE_NAMES = Literal["tag_names", "tags", "tag_aliases", "tag_groups"]
 TAGGING_TABLE_STATEMENTS: dict[TAGGING_TABLE_NAMES, sql.SQL] = {
-    "tag_names": sql.SQL(
-        """
+    "tag_names": sql.SQL("""
                          CREATE TABLE {} (
                             id SERIAL PRIMARY KEY,
                             tag_name TEXT NOT NULL UNIQUE
                          );
-                         """
-    ),
-    "tags": sql.SQL(
-        """
+                         """),
+    "tags": sql.SQL("""
                     CREATE TABLE {} (
                         id SERIAL PRIMARY KEY,
                         entry_id INT REFERENCES {} (id) NOT NULL,
                         tag_id INT REFERENCES {} (id) NOT NULL
                     );
-                    """
-    ),
-    "tag_aliases": sql.SQL(
-        """
+                    """),
+    "tag_aliases": sql.SQL("""
                          CREATE TABLE {} (
                             alias TEXT PRIMARY KEY,
                             tag_id INT REFERENCES {} (id) NOT NULL
                          );
-                         """
-    ),
-    "tag_groups": sql.SQL(
-        """
+                         """),
+    "tag_groups": sql.SQL("""
                          CREATE TABLE {} (
                             id SERIAL PRIMARY KEY,
                             tag_id INT REFERENCES {} (id) NOT NULL,
                             group_name TEXT NOT NULL
                          );
-                         """
-    ),
+                         """),
 }
 
 
