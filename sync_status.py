@@ -13,8 +13,7 @@ def main():
     with psycopg.connect(**CONN_CONFIG, dbname="info") as conn:
         with conn.cursor() as cur:
             # ensure sync_status_enum exists
-            cur.execute(
-                """
+            cur.execute("""
                 DO $$
                 BEGIN
                     IF NOT EXISTS (
@@ -29,12 +28,10 @@ def main():
                     END IF;
                 END
                 $$;
-                """
-            )
+                """)
 
             # ensure info/sync_status exists
-            cur.execute(
-                """CREATE TABLE IF NOT EXISTS sync_status (
+            cur.execute("""CREATE TABLE IF NOT EXISTS sync_status (
                     id SERIAL PRIMARY KEY,
                     table_name TEXT NOT NULL,
                     parent_table_name TEXT NOT NULL,
@@ -44,8 +41,19 @@ def main():
                     remote_id TEXT NULL,
                     sync_timestamp TIMESTAMPTZ NULL,
                     status sync_status_enum NULL
-                )"""
-            )
+                )""")
+
+            # ensure that there is a UNIQUE constraint for the table_name and entry_id
+            # @TODO reserved constraint name
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='sync_status_entry_unique') THEN
+                        ALTER TABLE sync_status ADD CONSTRAINT sync_status_entry_unique UNIQUE (table_name, database_name, entry_id);
+                    END IF;
+                END $$
+                """)
+
             logger.info("Table info/sync_status is ready.")
 
     # ensure there are foreign tables
@@ -90,8 +98,7 @@ def main():
                     )
                 )
 
-                data_cur.execute(
-                    """
+                data_cur.execute("""
                     DO $$
                     BEGIN
                         IF NOT EXISTS (
@@ -107,11 +114,9 @@ def main():
                         END IF;
                     END
                     $$;
-                    """
-                )
+                    """)
 
-                data_cur.execute(
-                    """DO $$
+                data_cur.execute("""DO $$
                     BEGIN
                         IF NOT EXISTS (
                             SELECT 1 FROM pg_foreign_table ft
@@ -134,6 +139,5 @@ def main():
                         END IF;
                     END
                     $$;
-                    """
-                )
+                    """)
                 logger.info(f"Table {database_name}/sync_status is ready.")
