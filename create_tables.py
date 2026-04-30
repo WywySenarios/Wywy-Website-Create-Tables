@@ -349,7 +349,7 @@ def enforce_tagging_tables(conn: Connection, table_name: str):
 
 
 def enforce_descriptor_tables(conn: Connection, table_schema: TableInfo) -> bool:
-    """Creates related descriptor tables if necessary, assuming that the table requires descriptors. @TODO reject invalid configs where there is a collision between different descriptor tables (extremely unlikely if the user is good-faith)
+    """Creates related descriptor tables if necessary. @TODO reject invalid configs where there is a collision between different descriptor tables (extremely unlikely if the user is good-faith)
 
     Args:
         conn (_type_): Connection to the database containing the parent table.
@@ -359,6 +359,9 @@ def enforce_descriptor_tables(conn: Connection, table_schema: TableInfo) -> bool
         bool: Whether or not the tables already exist or have been created.
     """
     output: bool = True
+    if "descriptors" not in table_schema:
+        return True
+
     # create one table for every descriptor type.
     for descriptor_schema in table_schema["descriptors"]:
         descriptor_table_name: str = (
