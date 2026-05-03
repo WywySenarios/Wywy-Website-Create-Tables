@@ -13,3 +13,7 @@ The following environment variables need to be included:
 - DATABASE_USERNAME
 - DATABASE_PASSWORD
 - SYNC_STATUS, which describes whether or not the sync status table should be created. Defaults to False.
+
+The following secrets need to be included:
+
+- admin

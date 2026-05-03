@@ -19,6 +19,7 @@ from psycopg.connection import Connection
 from psycopg.cursor import Cursor
 from psycopg import sql
 import sync_status
+from auth import ensure_auth_tables, ensure_admin_user
 
 
 def ensure_database_exists(conn: Connection, cur: Cursor, database_name: str) -> None:
@@ -582,5 +583,8 @@ if __name__ == "__main__":
 
     if environ.get("SYNC_STATUS", "false").lower() == "true":
         sync_status.main()
+
+    ensure_auth_tables()
+    ensure_admin_user()
 
     logger.info("Finished creating tables.")
