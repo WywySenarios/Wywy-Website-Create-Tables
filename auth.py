@@ -36,7 +36,6 @@ def ensure_auth_tables():
                     secret_hash         VARCHAR(64) NOT NULL,
                     created_at          TIMESTAMP NOT NULL DEFAULT now(),
                     
-                    CHECK (id ~ '^[abcdefghijkmnpqrstuvwxyz23456789]+$'),
                     CHECK (secret_hash ~ '^[0-9a-f]+$'),
                     CHECK (char_length(id) = 24),
                     CHECK (char_length(secret_hash) = 64)
