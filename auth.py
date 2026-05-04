@@ -24,7 +24,8 @@ def ensure_auth_tables():
                     
                     CHECK (access_level >= 0 AND access_level <= 100),
                     CHECK (username ~ '^[a-zA-Z0-9_-]+$'),
-                    CHECK (char_length(username) >= 4)
+                    CHECK (char_length(username) >= 4),
+                    CHECK (tokens_remaining > -0.001)
                 )
                 """)
             logger.info("Table info/users is ready.")
