@@ -15,7 +15,7 @@ def ensure_auth_tables():
                     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     username            VARCHAR(32) UNIQUE NOT NULL,
                     email               TEXT UNIQUE,
-                    password_hash       TEXT NOT NULL,
+                    password_hash       VARCHAR(64) NOT NULL,
                     created_at          TIMESTAMP NOT NULL DEFAULT now(),
                     access_level        INTEGER NOT NULL,
                     tokens_remaining    DOUBLE PRECISION NOT NULL DEFAULT 1000,
