@@ -36,6 +36,7 @@ def ensure_auth_tables():
                     user_id             UUID REFERENCES users(id) NOT NULL,
                     secret_hash         VARCHAR(64) NOT NULL,
                     created_at          TIMESTAMP NOT NULL DEFAULT now(),
+                    last_seen           TIMESTAMP NOT NULL DEFAULT now(),
                     
                     CHECK (secret_hash ~ '^[0-9a-f]+$'),
                     CHECK (char_length(id) = 24),
