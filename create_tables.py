@@ -158,6 +158,32 @@ def enforce_column(
                             ),
                         )
                     )
+                case "pointer":
+                    pointer_target = column_schema.get("references")
+                    if pointer_target is None:
+                        raise RuntimeError(
+                            f"Pointer target for {table_name}/{column_schema["name"]} is undefined."
+                        )
+                    cur.execute(
+                        sql.SQL(
+                            "ALTER TABLE {table_name} ADD COLUMN {column_name} INTEGER REFERENCES ({foreign_table_name})"
+                        ).format(
+                            table_name=sql.Identifier(table_name),
+                            column_name=sql.Identifier(column_name),
+                            foreign_table_name=sql.Identifier(pointer_target),
+                        )
+                    )
+                case "polymorphic pointer" | "polypointer":
+                    cur.execute(
+                        sql.SQL("""
+                                ALTER TABLE {table_name} ADD COLUMN {target_column_name} INTEGER
+                                ALTER TABLE {table_name} ADD COLUMN {type_column_name} VARCHAR(64)
+                                """).format(
+                            table_name=sql.Identifier(table_name),
+                            target_column_name=sql.Identifier(column_name),
+                            type_column_name=sql.Identifier(f"{column_name}_type"),
+                        )
+                    )
                 case _:
                     cur.execute(
                         sql.SQL("ALTER TABLE {} ADD {} {};").format(
