@@ -176,8 +176,8 @@ def enforce_column(
                 case "polymorphic pointer" | "polypointer":
                     cur.execute(
                         sql.SQL("""
-                                ALTER TABLE {table_name} ADD COLUMN {target_column_name} INTEGER
-                                ALTER TABLE {table_name} ADD COLUMN {type_column_name} VARCHAR(64)
+                                ALTER TABLE {table_name} ADD COLUMN {target_column_name} INTEGER;
+                                ALTER TABLE {table_name} ADD COLUMN {type_column_name} VARCHAR(64);
                                 """).format(
                             table_name=sql.Identifier(table_name),
                             target_column_name=sql.Identifier(column_name),
