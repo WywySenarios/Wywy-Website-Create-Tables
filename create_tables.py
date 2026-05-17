@@ -166,7 +166,7 @@ def enforce_column(
                         )
                     cur.execute(
                         sql.SQL(
-                            "ALTER TABLE {table_name} ADD COLUMN {column_name} INTEGER REFERENCES ({foreign_table_name})"
+                            "ALTER TABLE {table_name} ADD COLUMN {column_name} INTEGER REFERENCES {foreign_table_name}(id)"
                         ).format(
                             table_name=sql.Identifier(table_name),
                             column_name=sql.Identifier(column_name),
