@@ -1,31 +1,28 @@
-FROM python:3.14.0-slim-bookworm
+FROM liquibase/liquibase:4.29.2
 
-# create non-root user for runtime
-ARG USER_ID
-RUN groupadd -g 2523 Wywy-Website
-RUN useradd -g Wywy-Website -u ${USER_ID} -m -d /home/create_tables create_tables
+# The base image ends as USER liquibase:liquibase (uid 1001). Install as root,
+# then restore the non-root runtime user.
+USER root
 
-# populate requirements.txt
-COPY --chown=create_tables:Wywy-Website /apps/create_tables/requirements.txt /home/create_tables/requirements.txt
+# Pin the PostgreSQL JDBC driver (the base image bundles no postgres driver).
+# Version verified against Maven Central (2026-08-06).
+ADD https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.13/postgresql-42.7.13.jar /liquibase/lib/postgresql-42.7.13.jar
 
-# install required python packages
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+# Build context is the master-db repo root, so every COPY source is prefixed
+# with the submodule path apps/create_tables/...
+COPY apps/create_tables/changelog/ /changelog/
+COPY apps/create_tables/entrypoint.sh /entrypoint.sh
+COPY apps/create_tables/seed.py /seed.py
+COPY apps/create_tables/requirements.txt /requirements.txt
 
-# Download config.yml for CI (no runtime mount needed).
-RUN curl -fsSL https://raw.githubusercontent.com/WywySenarios/Wywy-Website-Control/main/config/config.yml \
-    -o /home/create_tables/config.yml
+# Python + deps for seed.py (psycopg + argon2-cffi).
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -r /requirements.txt
 
-# Create log directory so CI works without a host mount.
-RUN mkdir -p /var/log/Wywy-Website/create_tables && \
-    chown -R create_tables:Wywy-Website /var/log/Wywy-Website
+# COPY preserves 0644; the entrypoint must be executable.
+RUN chmod +x /entrypoint.sh
 
-RUN pip install -r /home/create_tables/requirements.txt
+USER 1001
 
-# populate all files
-COPY --chown=create_tables:Wywy-Website /apps/create_tables /home/create_tables
-
-USER create_tables
-
-ENTRYPOINT ["python3"]
-CMD ["/home/create_tables/create_tables.py"]
+ENTRYPOINT ["/entrypoint.sh"]
