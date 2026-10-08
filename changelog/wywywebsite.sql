@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset wywy_migrator:baseline-wywywebsite
+--changeset master_db_migrator:baseline-wywywebsite
 -- Baseline for the wywywebsite database, written by hand from config.yml
 -- semantics as enforced by the old create_tables.py (the executable spec).
 -- Plain CREATE TABLE / CREATE INDEX only. No GRANTs here (grants changeset
@@ -126,28 +126,28 @@ CREATE TABLE thought_journal_related_item_descriptors (
 --rollback DROP TABLE IF EXISTS daily;
 --rollback DROP TABLE IF EXISTS location;
 
---changeset wywy_migrator:grants-wywywebsite-1
--- DML grants for wywy_app. Explicit per-table GRANTs, never ON ALL TABLES
+--changeset master_db_migrator:grants-wywywebsite-1
+-- DML grants for master_db_app. Explicit per-table GRANTs, never ON ALL TABLES
 -- (a blanket grant would leak DML onto Liquibase's bookkeeping tables).
 GRANT SELECT, INSERT, UPDATE, DELETE ON
     location, events, events_tag_names, events_tags, events_tag_aliases, events_tag_groups,
     events_sleep_descriptors, daily, thought_journal,
     thought_journal_tag_names, thought_journal_tags, thought_journal_tag_aliases, thought_journal_tag_groups,
-    thought_journal_related_item_descriptors TO wywy_app;
+    thought_journal_related_item_descriptors TO master_db_app;
 -- Sanctioned blanket grant: Liquibase creates no sequences (bookkeeping is
 -- tables only), so ON ALL SEQUENCES cannot leak DML onto bookkeeping. A future
 -- SERIAL table must repeat this in its own grants-<db>-<seq> changeset, since
 -- ON ALL SEQUENCES only covers sequences that exist at execution time.
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO wywy_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO master_db_app;
 -- Defensive no-op on a clean-slate DB: only fixes pre-existing broad grants.
 -- It fires once and cannot guard future blanket grants. The permanent guard
--- is the Phase 8 drift check asserting wywy_app has no grants on bookkeeping.
-REVOKE ALL PRIVILEGES ON TABLE public.DATABASECHANGELOG, public.DATABASECHANGELOGLOCK FROM wywy_app;
---rollback REVOKE SELECT, INSERT, UPDATE, DELETE ON location, events, events_tag_names, events_tags, events_tag_aliases, events_tag_groups, events_sleep_descriptors, daily, thought_journal, thought_journal_tag_names, thought_journal_tags, thought_journal_tag_aliases, thought_journal_tag_groups, thought_journal_related_item_descriptors FROM wywy_app;
---rollback REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public FROM wywy_app;
+-- is the Phase 8 drift check asserting master_db_app has no grants on bookkeeping.
+REVOKE ALL PRIVILEGES ON TABLE public.DATABASECHANGELOG, public.DATABASECHANGELOGLOCK FROM master_db_app;
+--rollback REVOKE SELECT, INSERT, UPDATE, DELETE ON location, events, events_tag_names, events_tags, events_tag_aliases, events_tag_groups, events_sleep_descriptors, daily, thought_journal, thought_journal_tag_names, thought_journal_tags, thought_journal_tag_aliases, thought_journal_tag_groups, thought_journal_related_item_descriptors FROM master_db_app;
+--rollback REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public FROM master_db_app;
 -- Rollback of the defensive REVOKE is a deliberate NO-OP (same REVOKE), not an
 -- inverse: on a clean-slate DB the forward REVOKE changed nothing, so its
 -- "inverse" must not GRANT bookkeeping rights back (that would recreate the
 -- Risk-5 exposure). Any pre-existing broad grants it removed on a NON-clean-slate
 -- DB are not restored -- acceptable (best-effort).
---rollback REVOKE ALL PRIVILEGES ON TABLE public.DATABASECHANGELOG, public.DATABASECHANGELOGLOCK FROM wywy_app;
+--rollback REVOKE ALL PRIVILEGES ON TABLE public.DATABASECHANGELOG, public.DATABASECHANGELOGLOCK FROM master_db_app;

@@ -4,7 +4,7 @@ Reads the admin password from /run/secrets/admin, argon2-hashes it, and
 upserts the 'admin' user (access_level 100) into info.users.
 
 Port of auth.py's ensure_admin_user() minus table creation: tables are created
-by Liquibase migrations, and this runs as wywy_app (DML-only).
+by Liquibase migrations, and this runs as master_db_app (DML-only).
 """
 
 import logging

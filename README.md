@@ -21,14 +21,14 @@ The container runs `entrypoint.sh` with one of:
 
 ### Environment variables
 
-| Variable                     | Mode    | Value               |
-| ---------------------------- | ------- | ------------------- |
-| `DATABASE_HOST`              | both    | DB host             |
-| `DATABASE_PORT`              | both    | DB port             |
-| `DATABASE_MIGRATOR_USERNAME` | migrate | `wywy_migrator`     |
-| `DATABASE_MIGRATOR_PASSWORD` | migrate | migrator credential |
-| `DATABASE_USERNAME`          | seed    | `wywy_app`          |
-| `DATABASE_PASSWORD`          | seed    | app credential      |
+| Variable                     | Mode    | Value                |
+| ---------------------------- | ------- | -------------------- |
+| `DATABASE_HOST`              | both    | DB host              |
+| `DATABASE_PORT`              | both    | DB port              |
+| `DATABASE_MIGRATOR_USERNAME` | migrate | `master_db_migrator` |
+| `DATABASE_MIGRATOR_PASSWORD` | migrate | migrator credential  |
+| `DATABASE_USERNAME`          | seed    | `master_db_app`      |
+| `DATABASE_PASSWORD`          | seed    | app credential       |
 
 ### Secrets
 
@@ -40,14 +40,13 @@ The changelog directory contains exactly two root files, one per database.
 Never create additional files: the entrypoint passes `--changeLogFile` for
 each database, and the flat formatted-SQL roots do not `--include` anything.
 
-Future migrations APPEND new `--changeset wywy_migrator:<id>` blocks to the
+Future migrations APPEND new `--changeset master_db_migrator:<id>` blocks to the
 same root file. Liquibase checksums are per-changeset, so appending is safe;
 never modify the content of an already-applied changeset. A migration that
 creates tables must also append a new `grants-<db>-<seq>` changeset granting
-`wywy_app` DML on those tables, plus repeat `GRANT USAGE, SELECT ON ALL
+`master_db_app` DML on those tables, plus repeat `GRANT USAGE, SELECT ON ALL
 SEQUENCES IN SCHEMA public` (it only covers sequences that exist at execution
 time).
 
-Roles, databases, extensions (postgis, postgres_fdw) and the sync_status FDW
-machinery are superuser bootstrap concerns of the master-database repo, not of
-this changelog.
+Roles, databases, and the postgis extension are superuser bootstrap concerns
+of the control-repo DB-VM init (init-rbac.sh/.sql), not of this changelog.

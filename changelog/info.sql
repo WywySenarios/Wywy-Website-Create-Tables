@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset wywy_migrator:baseline-info
+--changeset master_db_migrator:baseline-info
 -- Baseline for the info database, exactly as auth.py defined it (auth.py was
 -- the executable spec). Plain CREATE TABLE statements only. No GRANTs here
 -- (grants changeset below).
@@ -37,18 +37,18 @@ CREATE TABLE sessions (
 --rollback DROP TABLE IF EXISTS sessions;
 --rollback DROP TABLE IF EXISTS users;
 
---changeset wywy_migrator:grants-info-1
--- DML grants for wywy_app. Explicit per-table GRANTs, never ON ALL TABLES.
-GRANT SELECT, INSERT, UPDATE, DELETE ON users, sessions TO wywy_app;
+--changeset master_db_migrator:grants-info-1
+-- DML grants for master_db_app. Explicit per-table GRANTs, never ON ALL TABLES.
+GRANT SELECT, INSERT, UPDATE, DELETE ON users, sessions TO master_db_app;
 -- Executes now as a no-op (info has no sequences at baseline: UUID/VARCHAR
 -- PKs). It grants only sequences that exist at execution time. A FUTURE info
 -- migration adding a SERIAL column MUST add a new grants-info-<seq> changeset
 -- that repeats this grant.
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO wywy_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO master_db_app;
 -- Defensive no-op on a clean-slate DB: see wywywebsite.sql grants changeset.
-REVOKE ALL PRIVILEGES ON TABLE public.DATABASECHANGELOG, public.DATABASECHANGELOGLOCK FROM wywy_app;
---rollback REVOKE SELECT, INSERT, UPDATE, DELETE ON users, sessions FROM wywy_app;
---rollback REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public FROM wywy_app;
+REVOKE ALL PRIVILEGES ON TABLE public.DATABASECHANGELOG, public.DATABASECHANGELOGLOCK FROM master_db_app;
+--rollback REVOKE SELECT, INSERT, UPDATE, DELETE ON users, sessions FROM master_db_app;
+--rollback REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public FROM master_db_app;
 -- Rollback of the defensive REVOKE is a deliberate NO-OP (same REVOKE), not an
 -- inverse: see wywywebsite.sql grants changeset.
---rollback REVOKE ALL PRIVILEGES ON TABLE public.DATABASECHANGELOG, public.DATABASECHANGELOGLOCK FROM wywy_app;
+--rollback REVOKE ALL PRIVILEGES ON TABLE public.DATABASECHANGELOG, public.DATABASECHANGELOGLOCK FROM master_db_app;
